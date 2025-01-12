@@ -13,7 +13,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             color: #333;
         }
 
@@ -22,7 +22,7 @@
             padding: 2rem;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            max-width: 500px;
+            max-width: 800px;
             width: 100%;
             animation: fadeIn 1s ease-in-out;
         }
@@ -40,19 +40,93 @@
             border: 1px solid #ccc;
             border-radius: 8px;
             background: #f9f9f9;
+            display: none; /* Скрываем все вопросы по умолчанию */
+        }
+
+        .question.active {
+            display: block; /* Показываем активный вопрос */
         }
 
         .question p {
             font-size: 1.1rem;
             margin-bottom: 0.5rem;
+            font-weight: bold;
         }
 
         .question label {
             display: block;
             margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            cursor: pointer;
+            transition: background 0.3s ease, border-color 0.3s ease;
         }
 
-        button {
+        .question label:hover {
+            background: #f1f1f1;
+            border-color: #6a11cb;
+        }
+
+        .question input[type="checkbox"] {
+            margin-right: 0.5rem;
+        }
+
+        .question-navigation {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .question-navigation button {
+            padding: 0.5rem 1rem;
+            background: #6a11cb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        .question-navigation button:hover {
+            background: #2575fc;
+        }
+
+        .question-navigation button:active {
+            transform: scale(0.95);
+        }
+
+        .question-navigation button.active {
+            background: #2575fc;
+        }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .navigation button {
+            padding: 0.5rem 1rem;
+            background: #6a11cb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        .navigation button:hover {
+            background: #2575fc;
+        }
+
+        .navigation button:active {
+            transform: scale(0.95);
+        }
+
+        button[type="submit"] {
             width: 100%;
             padding: 0.75rem;
             background: #6a11cb;
@@ -64,11 +138,11 @@
             transition: background 0.3s ease, transform 0.2s ease;
         }
 
-        button:hover {
+        button[type="submit"]:hover {
             background: #2575fc;
         }
 
-        button:active {
+        button[type="submit"]:active {
             transform: scale(0.95);
         }
 
@@ -88,25 +162,174 @@
     <div class="container">
         <h1>Решите тест</h1>
         <form action="{{ url_for('submit_test') }}" method="POST">
-            <!-- Скрытое поле для передачи UUID теста -->
+            <!-- Скрытые поля для UUID, имени и фамилии -->
             <input type="hidden" name="uuid" value="{{ uuid }}">
+            <input type="hidden" name="name" value="{{ name }}">
+            <input type="hidden" name="surname" value="{{ surname }}">
+
+            <!-- Навигация по вопросам -->
+            <div class="question-navigation">
+                {% for question in questions %}
+                    <button type="button" class="question-nav-button" data-question="{{ loop.index }}">
+                        {{ loop.index }}
+                    </button>
+                {% endfor %}
+            </div>
 
             <!-- Динамическое создание вопросов и ответов -->
             {% for question in questions %}
                 <div class="question">
-                    <p><strong>Вопрос {{ loop.index }}:</strong> {{ question }}</p>
-                    {% for answer in answers %}
-                        <label>
-                            <!-- Убедитесь, что name уникален для каждого вопроса -->
-                            <input type="radio" name="question_{{ loop.index }}" value="{{ answer }}" required>
-                            {{ answer }}
-                        </label>
-                    {% endfor %}
+                    <p>{{ loop.index }}. {{ question }}</p>
+                    {% if answers_dict[loop.index0] %}
+                        {% for answer in answers_dict[loop.index0] %}
+                            <label for="question_{{ loop.index0 }}_{{ loop.index }}">
+                                <input type="checkbox" name="question_{{ loop.index0 }}" value="{{ answer }}" id="question_{{ loop.index0 }}_{{ loop.index }}" class="checkbox-radio">
+                                {{ answer }}
+                            </label>
+                        {% endfor %}
+                    {% else %}
+                        <p>Нет вариантов ответа для этого вопроса.</p>
+                    {% endif %}
                 </div>
             {% endfor %}
 
-            <button type="submit">Завершить тест</button>
+            <!-- Кнопки навигации -->
+            <div class="navigation">
+                <button type="button" id="prevButton">Назад</button>
+                <button type="button" id="nextButton">Далее</button>
+            </div>
+
+            <!-- Кнопка завершения теста -->
+            <button type="submit" id="submitButton" style="display: none;">Завершить тест</button>
         </form>
     </div>
+
+    <script>
+        let currentQuestion = 1;
+        const totalQuestions = {{ questions|length }};
+        const questions = document.querySelectorAll('.question');
+        const prevButton = document.getElementById('prevButton');
+        const nextButton = document.getElementById('nextButton');
+        const submitButton = document.getElementById('submitButton');
+        const questionNavButtons = document.querySelectorAll('.question-nav-button');
+
+        // Объект для хранения выбранных ответов
+        const selectedAnswers = {};
+
+        // Показываем первый вопрос
+        showQuestion(currentQuestion);
+
+        // Функция для показа вопроса
+        function showQuestion(questionNumber) {
+            questions.forEach((question, index) => {
+                if (index + 1 === questionNumber) {
+                    question.classList.add('active');
+                } else {
+                    question.classList.remove('active');
+                }
+            });
+
+            // Обновляем активную кнопку навигации
+            questionNavButtons.forEach((button, index) => {
+                if (index + 1 === questionNumber) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+
+            // Показываем/скрываем кнопки "Назад" и "Далее"
+            prevButton.style.display = questionNumber === 1 ? 'none' : 'block';
+            nextButton.style.display = questionNumber === totalQuestions ? 'none' : 'block';
+            submitButton.style.display = questionNumber === totalQuestions ? 'block' : 'none';
+
+            // Восстанавливаем выбранный ответ, если он есть
+            const selectedAnswer = selectedAnswers[questionNumber];
+            if (selectedAnswer) {
+                const checkboxes = document.querySelectorAll(`.question.active input[type="checkbox"]`);
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = checkbox.value === selectedAnswer;
+                });
+            } else {
+                // Сбрасываем все чекбоксы, если ответ не выбран
+                const checkboxes = document.querySelectorAll(`.question.active input[type="checkbox"]`);
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            }
+        }
+
+        // Обработчик для кнопок навигации по вопросам
+        questionNavButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Сохраняем текущий выбранный ответ перед переходом
+                const selectedCheckbox = document.querySelector(`.question.active input[type="checkbox"]:checked`);
+                if (selectedCheckbox) {
+                    selectedAnswers[currentQuestion] = selectedCheckbox.value;
+                } else {
+                    selectedAnswers[currentQuestion] = null;
+                }
+
+                // Переходим к выбранному вопросу
+                const questionNumber = parseInt(button.getAttribute('data-question'));
+                currentQuestion = questionNumber;
+                showQuestion(currentQuestion);
+            });
+        });
+
+        // Обработчик для кнопки "Назад"
+        prevButton.addEventListener('click', () => {
+            if (currentQuestion > 1) {
+                // Сохраняем текущий выбранный ответ перед переходом
+                const selectedCheckbox = document.querySelector(`.question.active input[type="checkbox"]:checked`);
+                if (selectedCheckbox) {
+                    selectedAnswers[currentQuestion] = selectedCheckbox.value;
+                } else {
+                    selectedAnswers[currentQuestion] = null;
+                }
+
+                currentQuestion--;
+                showQuestion(currentQuestion);
+            }
+        });
+
+        // Обработчик для кнопки "Далее"
+        nextButton.addEventListener('click', () => {
+            if (currentQuestion < totalQuestions) {
+                // Сохраняем текущий выбранный ответ перед переходом
+                const selectedCheckbox = document.querySelector(`.question.active input[type="checkbox"]:checked`);
+                if (selectedCheckbox) {
+                    selectedAnswers[currentQuestion] = selectedCheckbox.value;
+                } else {
+                    selectedAnswers[currentQuestion] = null;
+                }
+
+                currentQuestion++;
+                showQuestion(currentQuestion);
+            }
+        });
+
+        // Логика для чекбоксов, чтобы они вели себя как радио-кнопки
+        document.querySelectorAll('.checkbox-radio').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    // Находим все чекбоксы в текущем вопросе
+                    const question = this.closest('.question');
+                    const checkboxes = question.querySelectorAll('.checkbox-radio');
+                    checkboxes.forEach(cb => {
+                        if (cb !== this) {
+                            cb.checked = false; // Снимаем выделение с других чекбоксов
+                        }
+                    });
+
+                    // Сохраняем выбранный ответ
+                    selectedAnswers[currentQuestion] = this.value;
+                } else {
+                    // Если чекбокс снят, удаляем ответ из сохраненных
+                    selectedAnswers[currentQuestion] = null;
+                }
+            });
+        });
+    </script>
 </body>
 </html>

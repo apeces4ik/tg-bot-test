@@ -13,7 +13,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             color: #333;
         }
 
@@ -22,7 +22,7 @@
             padding: 2rem;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            max-width: 500px;
+            max-width: 800px;
             width: 100%;
             animation: fadeIn 1s ease-in-out;
         }
@@ -34,24 +34,60 @@
             font-size: 2rem;
         }
 
-        .result {
-            margin-bottom: 1rem;
+        .question-block {
+            margin-bottom: 1.5rem;
             padding: 1rem;
             border: 1px solid #ccc;
             border-radius: 8px;
             background: #f9f9f9;
         }
 
-        .result p {
-            margin: 0.5rem 0;
+        .question-block.correct {
+            border-color: #4CAF50;
+            background: #e8f5e9;
         }
 
-        .correct {
-            color: green;
+        .question-block.incorrect {
+            border-color: #f44336;
+            background: #ffebee;
         }
 
-        .incorrect {
-            color: red;
+        .question-block p {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .question-block .user-answer,
+        .question-block .correct-answer {
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+
+        .question-block .user-answer {
+            background: #fff3e0;
+        }
+
+        .question-block .correct-answer {
+            background: #e0f7fa;
+        }
+
+        .question-block .correct .user-answer {
+            background: #c8e6c9;
+        }
+
+        .question-block .incorrect .user-answer {
+            background: #ffcdd2;
+        }
+
+        .score {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: #f1f1f1;
+            border-radius: 8px;
         }
 
         @keyframes fadeIn {
@@ -69,17 +105,24 @@
 <body>
     <div class="container">
         <h1>Результаты теста</h1>
-        <div class="results">
-            {% for question in questions %}
-                <div class="result">
-                    <p><strong>Вопрос:</strong> {{ question }}</p>
-                    <p><strong>Ваш ответ:</strong> {{ results[loop.index0].user_answer }}</p>
-                    <p><strong>Правильный ответ:</strong> {{ results[loop.index0].correct_answer }}</p>
-                    <p class="{{ 'correct' if results[loop.index0].is_correct else 'incorrect' }}">
-                        {{ 'Правильно' if results[loop.index0].is_correct else 'Неправильно' }}
-                    </p>
+
+        <!-- Блоки с вопросами и ответами -->
+        {% for question, result in results.items() %}
+            <div class="question-block {% if result.is_correct %}correct{% else %}incorrect{% endif %}">
+                <p>Вопрос {{ loop.index }}: {{ questions[loop.index0] }}</p>
+                <div class="user-answer">
+                    <strong>Ваш ответ:</strong> {{ result.user_answer }}
                 </div>
-            {% endfor %}
+                <div class="correct-answer">
+                    <strong>Правильный ответ:</strong> {{ result.correct_answer }}
+                </div>
+            </div>
+        {% endfor %}
+
+        <!-- Блок с итоговой статистикой -->
+        <div class="score">
+            <p><strong>Количество правильных ответов:</strong> {{ correct_count }} из {{ total_questions }}</p>
+            <p><strong>Процент правильных ответов:</strong> {{ score|round(2) }}%</p>
         </div>
     </div>
 </body>
